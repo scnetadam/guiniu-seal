@@ -6,6 +6,19 @@
 
 本项目遵循[贡献者公约](CODE_OF_CONDUCT.md)。参与即表示您同意遵守该准则。
 
+## ⚠️ 合规红线 / Compliance Red Line
+
+本项目是**直连支付协议**，资金从付款方直达收款方，协议层不触碰资金池。
+
+**严禁在开源代码中引入以下功能：**
+- 平台代收资金再分发的资金归集逻辑
+- 用户资金沉淀在平台账户的设计
+- 任何形式的"二清"（二次清算）模式
+
+如需企业级资金归集、多商户分账、T+1 清算等功能，请联系闭源商用授权版本。
+
+Any platform built on this protocol must ensure: funds flow directly from payer to payee. The protocol must never hold, pool, or intermediate user funds. Violations of local financial regulations (including but not limited to illegal payment aggregation) are the responsibility of the deploying party.
+
 ## 如何贡献
 
 ### 1. 报告 Bug
