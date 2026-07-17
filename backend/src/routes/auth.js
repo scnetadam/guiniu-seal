@@ -1,26 +1,31 @@
 const express = require('express');
 const router = express.Router();
-const { userStore } = require('../models/dataStore');
+const { users } = require('../models/dataStore');
 
 // POST /api/auth/login — 登录/注册
 router.post('/login', (req, res) => {
   try {
-    const { code, nickName, avatarUrl, platform, role } = req.body;
+    const { code, nickName, avatarUrl, platform } = req.body;
     if (!code) {
       return res.status(400).json({ success: false, error: 'code required' });
     }
 
     const openId = code.startsWith('demo_') ? code : `open_${code.slice(0, 12)}`;
 
-    let user = userStore.getByOpenId(openId);
+    let user = users.find(u => u.openId === openId);
     if (!user) {
-      user = userStore.create({
+      const newUser = {
+        id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         openId,
         nickName: nickName || '用户',
         avatarUrl: avatarUrl || '',
         platform: platform || 'alipay',
-        role: role || 'C',
-      });
+        role: 'user',
+        balance: 0,
+        createdAt: new Date().toISOString(),
+      };
+      users.set(newUser.id, newUser);
+      user = newUser;
     }
 
     const token = `gn_${user.id}_${Date.now()}`;
@@ -38,61 +43,33 @@ router.post('/login', (req, res) => {
       },
     });
   } catch (e) {
-    console.error('[Login Error]', e);
-    res.status(500).json({ success: false, error: e.message });
+    console.error('[auth] 登录错误:', e);
+    res.status(500).json({ success: false, error: '服务器错误' });
   }
 });
 
-// GET /api/auth/profile — 获取用户信息
-router.get('/profile', (req, res) => {
+// GET /api/auth/user — 获取用户信息
+router.get('/user', (req, res) => {
   try {
-    const userId = req.query.userId;
-    if (!userId) {
-      return res.status(400).json({ success: false, error: 'userId required' });
-    }
-    const user = userStore.getById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, error: '用户不存在' });
-    }
-    res.json({ success: true, data: user });
-  } catch (e) {
-    console.error('[Profile Error]', e);
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ success: false, error: 'userId required' });
 
-// GET /api/auth/g-login — G 端快速登录（开发环境）
-router.get('/g-login', (req, res) => {
-  try {
-    const openId = 'demo_g_001';
-    let user = userStore.getByOpenId(openId);
-    if (!user) {
-      user = userStore.create({
-        openId,
-        nickName: '数据局-张',
-        avatarUrl: '',
-        platform: 'alipay',
-        role: 'G',
-      });
-    }
-
-    const token = `gn_${user.id}_${Date.now()}`;
+    const user = users.get(userId);
+    if (!user) return res.status(404).json({ success: false, error: '用户不存在' });
 
     res.json({
       success: true,
       data: {
-        token,
-        user: {
-          id: user.id,
-          nickName: user.nickName,
-          avatarUrl: user.avatarUrl,
-          role: user.role,
-        },
+        id: user.id,
+        nickName: user.nickName,
+        avatarUrl: user.avatarUrl,
+        role: user.role,
+        balance: user.balance || 0,
       },
     });
   } catch (e) {
-    console.error('[G-Login Error]', e);
-    res.status(500).json({ success: false, error: e.message });
+    console.error('[auth] 查询用户错误:', e);
+    res.status(500).json({ success: false, error: '服务器错误' });
   }
 });
 
