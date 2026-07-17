@@ -3,6 +3,8 @@ const router = express.Router();
 const { payments, wallets } = require('../models/dataStore');
 
 // POST /api/agent-pay/execute — Agent 发起支付
+// ⚠️ Agent 仅代为触发支付指令，资金仍从 payer 直付 payee
+// Agent only triggers payment instruction; funds still flow directly from payer to payee
 router.post('/execute', (req, res) => {
   try {
     const { agentId, payerId, payeeId, amount, subject, authCode } = req.body;

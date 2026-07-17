@@ -3,6 +3,8 @@ const router = express.Router();
 const { payments, wallets, users } = require('../models/dataStore');
 
 // POST /api/payment/create — 创建支付
+// ⚠️ 直连模式：付款方直付收款方，协议不代收代付，不触碰资金池
+// Direct settlement: payer → payee directly, protocol never holds funds
 router.post('/create', (req, res) => {
   try {
     const { payerId, payeeId, amount, subject, channel } = req.body;
@@ -32,6 +34,8 @@ router.post('/create', (req, res) => {
 });
 
 // POST /api/payment/confirm — 确认支付
+// ⚠️ 仅执行 payer→payee 直连转账，平台不介入资金流转
+// Direct transfer only, platform never intermediates funds
 router.post('/confirm', (req, res) => {
   try {
     const { id } = req.body;

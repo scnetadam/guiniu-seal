@@ -6,6 +6,12 @@
 > **执印行权** · 每一笔支付如印章落纸，可追溯、可验证、不可抵赖  
 > **Seal of Authority** — Every payment lands like a seal on parchment: traceable, verifiable, non-repudiable.
 
+> ⚠️ **合规声明 / Compliance Notice**  
+> 本协议采用**直连模式**：资金从付款方直达收款方本人账户，协议层仅做触发、记账与哈希上链确权，**绝不触碰资金池**。  
+> This protocol uses a **direct settlement model**: funds flow directly from payer to payee's own account. The protocol layer only triggers, records, and hash-anchors transactions — **it never touches the pool of funds.**  
+> 任何使用本协议构建的平台，须自行确保其运营符合当地金融监管法规，包括但不限于支付牌照、反洗钱（AML）及了解你的客户（KYC）要求。  
+> Any platform built on this protocol must ensure compliance with local financial regulations, including but not limited to payment licensing, AML, and KYC requirements.
+
 ---
 
 ## 📖 项目简介 / About
@@ -15,6 +21,9 @@
 
 支持法币（支付宝/微信）和链上（USDC/ETH）双轨结算，赋能 AI Agent 微交易生态。  
 Supports dual-rail settlement — fiat (Alipay/WeChat) and on-chain (USDC/ETH) — powering AI Agent micro-transaction ecosystems.
+
+**核心定位 / Core Positioning**  
+> Multi-settlement Layer: Native X402 (USDC/ETH) for Agent economy, with L1 fiat adapters (Alipay/WeChat Pay) for real-world merchants. Start with fiat, migrate to on-chain when your Agent goes global.
 
 龟钮（Guiniu）源自汉代官印龟钮制度，象征权威与信诺。本项目将印章精神注入数字支付：  
 The name "Guiniu" (tortoise-knob seal) originates from Han dynasty official seals, symbolizing authority and trust. We bring this spirit into digital payments.
