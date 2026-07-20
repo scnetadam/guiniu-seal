@@ -7,7 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { userStore, paymentStore, walletStore } = require('../models/dataStore');
+const { users: userStore, payments: paymentStore, wallets: walletStore } = require('../models/dataStore');
 
 // 印鉴 AI 服务地址
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:3000';
@@ -118,7 +118,7 @@ function queryUserData(userId, project) {
   if (!userId) return '';
   const user = userStore.get(userId);
   const wallet = walletStore.get(userId);
-  const payments = paymentStore.getByUser(userId);
+  const payments = paymentStore.find(p => p.payerId === userId || p.payeeId === userId);
 
   let data = '';
   if (project === 'seal') {

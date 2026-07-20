@@ -49,6 +49,7 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '../../stores/index'
+import { notificationApi } from '../../api/index'
 
 const userStore = useUserStore()
 const phone = ref('')
@@ -73,7 +74,10 @@ async function handleLogin() {
     const success = await userStore.login({ phone: phone.value, password: password.value, isRegister: isRegister.value })
     if (success) {
       uni.showToast({ title: isRegister.value ? '注册成功' : '登录成功', icon: 'success' })
-      setTimeout(() => uni.switchTab({ url: '/pages/home/index' }), 500)
+      setTimeout(() => {
+        uni.switchTab({ url: '/pages/home/index' })
+        checkLoginReminders()
+      }, 500)
     } else {
       uni.showToast({ title: userStore.error || '操作失败', icon: 'none' })
     }
@@ -86,6 +90,27 @@ async function handleLogin() {
 
 function wechatLogin() { uni.showToast({ title: '微信登录开发中', icon: 'none' }) }
 function alipayLogin() { uni.showToast({ title: '支付宝登录开发中', icon: 'none' }) }
+
+async function checkLoginReminders() {
+  try {
+    const res = await notificationApi.loginReminders()
+    if (res.success && res.data?.hasEarningsReminder) {
+      const reminder = res.data.reminders.find(r => r.category === 'earnings_claim')
+      if (reminder) {
+        uni.showModal({
+          title: reminder.title || '收益提醒',
+          content: reminder.body || '您有待领取的收益',
+          confirmText: reminder.actionText || '立即查看',
+          cancelText: '稍后再说',
+          success: ({ confirm }) => {
+            if (confirm) uni.navigateTo({ url: reminder.actionUrl || '/pages/wallet/index' })
+            notificationApi.dismissReminder(reminder.id)
+          }
+        })
+      }
+    }
+  } catch (e) {}
+}
 </script>
 
 <style scoped>

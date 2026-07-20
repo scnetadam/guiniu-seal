@@ -2,13 +2,13 @@
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app';
 
 onLaunch(() => {
-  console.log('[龟钮印证] App Launch');
+  console.log('[龟钮印信] App Launch');
 });
 onShow(() => {
-  console.log('[龟钮印证] App Show');
+  console.log('[龟钮印信] App Show');
 });
 onHide(() => {
-  console.log('[龟钮印证] App Hide');
+  console.log('[龟钮印信] App Hide');
 });
 </script>
 
@@ -18,7 +18,7 @@ onHide(() => {
 
 <style>
 /* ============================
-   龟钮印证 全局样式 v2.0
+   龟钮印信 全局样式 v2.0
    品牌色系 | 龟钮 IP 风格
    ============================ */
 

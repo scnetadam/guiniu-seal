@@ -2,176 +2,224 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/scnetadam/guiniu-seal)](https://github.com/scnetadam/guiniu-seal/stargazers)
+[![Open Source](https://img.shields.io/badge/Open%20Source-Free-brightgreen)](https://github.com/scnetadam/guiniu-seal)
 
-> **执印行权** · 每一笔支付如印章落纸，可追溯、可验证、不可抵赖  
+> **执印行权** · 每笔支付如印章落纸，可追溯、可验证、不可抵赖  
 > **Seal of Authority** — Every payment lands like a seal on parchment: traceable, verifiable, non-repudiable.
 
 > ⚠️ **合规声明 / Compliance Notice**  
 > 本协议采用**直连模式**：资金从付款方直达收款方本人账户，协议层仅做触发、记账与哈希上链确权，**绝不触碰资金池**。  
-> This protocol uses a **direct settlement model**: funds flow directly from payer to payee's own account. The protocol layer only triggers, records, and hash-anchors transactions — **it never touches the pool of funds.**  
-> 任何使用本协议构建的平台，须自行确保其运营符合当地金融监管法规，包括但不限于支付牌照、反洗钱（AML）及了解你的客户（KYC）要求。  
-> Any platform built on this protocol must ensure compliance with local financial regulations, including but not limited to payment licensing, AML, and KYC requirements.
+> This protocol uses a **direct settlement model**: funds flow directly from payer to payee's own account. The protocol layer only triggers, records, and hash-anchors transactions — **it never touches the pool of funds.**
+>
+> **DISCLAIMER**: CN REGION FORCES CREDIT LEDGER + PAY + JINSHUI OAUTH; INTL REGION USERS X402 NATIVE.  
+> 代码国内部署需自行取得委托代征/分账税务资质。本开源版仅提供接口定义（interface），核心引擎实现不含于开源代码中。  
+> Tax compliance: Users must obtain their own commissioned tax collection / split-account tax qualifications for domestic deployment.
 
 ---
 
-## 📖 项目简介 / About
+## 🌐 龟钮三驾马车
 
-**龟钮·印信** 是一个开源的智能微支付协议，专为 AI Agent 时代设计。  
-**Guiniu Seal** is an open-source smart micro-payment protocol built for the AI Agent era.
+```
+┌─────────────────────────────────────────────────────────┐
+│                    龟钮·印信 (Seal)                       │
+│                    手 · 骨骼 · 支付网关                    │
+│          ╱        支付宝 / 微信 / e-CNY 三通道          │
+├─────────────────────────────────────────────────────────┤
+│                    龟钮·印证 (Verify)                     │
+│                    脑 · 基因 · 数据存证                    │
+│          ╱        Hash上链 / 公证 / 数据市场             │
+├─────────────────────────────────────────────────────────┤
+│                    龟钮·自驭 (Deveco)                     │
+│                    身 · 神经 · AI智能体                   │
+│          ╱        KOL权重 / 三轨税务 / 内容生态           │
+└─────────────────────────────────────────────────────────┘
+```
 
-支持法币（支付宝/微信）和链上（USDC/ETH）双轨结算，赋能 AI Agent 微交易生态。  
-Supports dual-rail settlement — fiat (Alipay/WeChat) and on-chain (USDC/ETH) — powering AI Agent micro-transaction ecosystems.
-
-**核心定位 / Core Positioning**  
-> Multi-settlement Layer: Native X402 (USDC/ETH) for Agent economy, with L1 fiat adapters (Alipay/WeChat Pay) for real-world merchants. Start with fiat, migrate to on-chain when your Agent goes global.
-
-龟钮（Guiniu）源自汉代官印龟钮制度，象征权威与信诺。本项目将印章精神注入数字支付：  
-The name "Guiniu" (tortoise-knob seal) originates from Han dynasty official seals, symbolizing authority and trust. We bring this spirit into digital payments.
+**价值双螺旋 VDB**：信息流（内容创作↔数据存证）× 资金流（支付结算↔KOL分账）
 
 ---
 
-## ✨ 核心功能 / Features
+## ✨ 核心功能
 
-| 功能 / Feature | 说明 / Description |
-|---|---|
-| 💰 **个人转账** / P2P Transfer | 用户间转账，支持多支付通道 / Peer-to-peer transfer with multi-channel support |
-| 🤖 **Agent 支付** / Agent Payment | AI 智能体发起微交易，授权额度管理 / AI-agent-initiated micro-transactions with quota management |
-| 📱 **扫码收款** / QR Collection | 生成收款码，扫码即付 / Generate payment QR codes for instant collection |
-| 📊 **交易流水** / Transaction Log | 账单查询，筛选导出 / Bill inquiry with filtering and export |
-| 🪪 **数字钱包** / Digital Wallet | 余额管理，多通道聚合 / Balance management with multi-channel aggregation |
-| 🧠 **AI 助手** / AI Assistant | 智能问答，语音指令（需配合龟钮·印鉴） / Smart Q&A with voice commands (requires Guiniu Deveco) |
+### 🏦 结算引擎 (Settle Engine)
 
----
+| 模块 | 说明 |
+|------|------|
+| **💳 三通道支付** | 支付宝 · 微信支付 · 数字人民币 (e-CNY) |
+| **📊 智能分账** | 权重驱动，支持自定义分账规则 (SplitContract) |
+| **🧾 三轨税务** | A轨工资薪金 / B轨劳务报酬 / C轨经营所得 |
+| **🔗 存证流(第四流)** | 每笔交易自动创建 SHA256 不可篡改存证快照 |
+| **🔄 扩展流** | 5流(非标合同) / 6流(实物交付) 预留接口 |
 
-## 🏗️ 架构 / Architecture
+### 🧠 AI 协调层 (Orchestrator)
 
-```
-┌──────────────────────────┐
-│  前端 Frontend (uni-app)  │  ← 支付宝/微信小程序 / Alipay/WeChat Mini App
-├──────────────────────────┤
-│  后端 Backend (Node.js)   │  ← Express REST API
-├──────────────────────────┤
-│  AI 代理层 AI Proxy       │  ← 调用龟钮·印鉴 AI 服务 / Proxies to Guiniu Deveco AI
-├──────────────────────────┤
-│  支付通道 Payment Rails    │  ← 支付宝 / 微信 / USDC / ETH
-└──────────────────────────┘
-```
+- **权重协调**：内容访问量/停留时长/互动深度/分享传播 → 实时加权
+- **支付存证联动**：印信结算 → 印证公证 → 自驭权重更新 → 回流分账
+- **用户收益通知**：站内信 / 邮件 / 短信 实时提醒
+- **失败重试**：协调队列持久化，最多3次自动重试
 
-### 数据流 / Data Flow
+### 🤖 Agent 支付
 
-```
-用户 → 小程序 → Nginx → 后端 API → AI 代理 → 龟钮·印鉴（AI 服务）
-                        → 支付通道 → 结算完成
-```
+| 通道 | 状态 | 说明 |
+|------|------|------|
+| 支付宝 ACT+MCP | ✅ | NFC/二维码/MCP智能路由/子商户 |
+| 微信 AI 专属卡 | ✅ | 额度管理/自动扣款/授权代理 |
+| 银联 AI 支付 | ✅ | 快捷支付/跨境支付/汇率查询 |
+| e-CNY 伞列分账 | ✅ | 建行伞列架构，KOL权重触发自动清分 |
 
 ---
 
-## 🚀 快速开始 / Quick Start
+## 🏗️ 四流合一架构
 
-### 环境要求 / Prerequisites
+```
+                  ┌──────────────────────────────┐
+    支付流 ──────►│  ① 结算流 (Settle)           │
+                  │  ┌─ 支付宝 ─┐                 │
+       分账流 ────►│  ├─ 微信   ─┤  ② 分账流       │
+                  │  └─ e-CNY  ─┘                 │
+       税务流 ────►│  ③ 税务流 (TaxEngine)        │
+                  │  A轨/B轨/C轨 自动计算         │
+       存证流 ────►│  ④ 存证流 (NotaryEngine)     │
+                  │  SHA256快照·完整性验证         │
+                  └──────────┬───────────────────┘
+                             │
+                             ▼
+                  ┌──────────────────────────────┐
+                  │    协调层 Orchestrator         │
+                  │  印信→印证→自驭 AI联动         │
+                  └──────────────────────────────┘
+```
 
-- **Node.js** ≥ 18
-- **npm** ≥ 9
+**预留扩展**：
+- 5流：非标合同流（电子合同/签章关联）
+- 6流：B端实物交付流（物流/签收/验收）
+- N流：场景化扩展接口（`attachStream`）
 
-### 后端启动 / Backend
+---
+
+## 🚀 快速开始
+
+### 后端
 
 ```bash
 cd backend
-cp .env.example .env   # 编辑配置 / Edit configuration
+cp .env.example .env
 npm install
-npm start              # 默认端口 3000 / Default port 3000
+npm start
+# 默认端口 3000，API: /api/settle/checkout
 ```
 
-### 前端开发 / Frontend
+### 前端
 
 ```bash
 cd frontend
 npm install
-npm run dev            # HBuilderX 或 uni-app CLI
+npm run dev
+# HBuilderX 或 uni-app CLI
 ```
 
-### 环境变量 / Environment Variables
+### 一键初始化
 
-| 变量 / Variable | 默认值 / Default | 说明 / Description |
-|---|---|---|
-| `PORT` | `3000` | 后端端口 / Backend port |
-| `AI_SERVICE_URL` | `http://localhost:80` | AI 服务内网地址 / AI service internal address |
+```bash
+# 写入种子数据 + 创建存证测试
+node src/seed-engine/cli.js --force
+# 仅检测状态
+node src/seed-engine/cli.js --check
+```
 
 ---
 
-## 📁 目录结构 / Directory Structure
+## 📁 目录结构
 
 ```
 guiniu-seal/
-├── LICENSE                  # Apache 2.0
-├── CONTRIBUTING.md          # 贡献指南 / Contribution Guide
-├── CODE_OF_CONDUCT.md       # 行为准则 / Code of Conduct
-├── README.md                # 本文档 / This file
-├── backend/                 # 后端服务 / Backend Service
-│   ├── src/
-│   │   ├── index.js         # 入口 / Entry point
-│   │   ├── routes/
-│   │   │   ├── ai.js        # AI 代理路由 / AI proxy routes
-│   │   │   ├── auth.js      # 认证 / Authentication
-│   │   │   ├── payment.js   # 支付 / Payment
-│   │   │   ├── wallet.js    # 钱包 / Wallet
-│   │   │   └── agentPay.js  # Agent 支付 / Agent Payment
-│   │   └── models/
-│   │       └── dataStore.js # 文件持久化 / File-based persistence
-│   └── package.json
-├── frontend/                # 前端 uni-app / Frontend
+├── LICENSE                     # Apache 2.0
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── README.md
+├── backend/
 │   └── src/
-│       ├── api/             # API 封装 / API wrappers
-│       ├── pages/
-│       │   ├── home/        # 首页 / Home
-│       │   ├── pay/         # 支付 / Payment
-│       │   ├── wallet/      # 钱包 / Wallet
-│       │   ├── bills/       # 账单 / Bills
-│       │   ├── ai-chat/     # AI 助手 / AI Assistant
-│       │   ├── profile/     # 我的 / Profile
-│       │   └── login/       # 登录 / Login
-│       └── pages.json
-├── deploy/                  # 部署配置 / Deployment Config
-│   ├── nginx-guiniu.conf
-│   └── DEPLOY.md
+│       ├── index.js            # 入口
+│       ├── routes/
+│       │   ├── settle.js       # ⭐ 四流合一结算引擎（核心）
+│       │   ├── agentPay.js     # Agent 支付
+│       │   ├── auth.js         # 认证
+│       │   ├── payment.js      # 支付
+│       │   ├── wallet.js       # 钱包
+│       │   ├── ai.js           # AI 代理
+│       │   ├── dataLock.js     # 数据锁定
+│       │   ├── gitRepoTracker.js # GitHub追踪
+│       │   └── notification.js # 通知
+│       ├── orchestrator/       # 协调层
+│       ├── seed-engine/        # 种子引擎
+│       └── models/
+├── frontend/
+│   └── src/
+│       ├── pages/              # 首页/付款/收款/账单/钱包 ...
+│       └── api/
+├── deploy/                     # Nginx / 部署
 └── docs/
-    └── SPLIT_PLAN.md
 ```
 
 ---
 
-## 🛠️ 技术栈 / Tech Stack
+## 📊 三轨税务引擎
 
-| 层 / Layer | 技术 / Technology |
-|---|---|
-| **前端 Frontend** | uni-app (Vue 3 + TypeScript) |
-| **后端 Backend** | Node.js + Express |
-| **AI 能力 AI** | 代理模式调用龟钮·印鉴（GLM 大模型） / Proxy mode via Guiniu Deveco (GLM LLM) |
-| **支付通道 Payment** | 支付宝 Alipay / 微信 WeChat / USDC / ETH |
-| **数据存储 Storage** | 文件 JSON（开发） / File JSON (dev) → PostgreSQL（生产 / production） |
+| 税务轨 | 适用场景 | 扣缴方式 | 发票 |
+|--------|---------|---------|------|
+| **A轨** | 工资薪金（雇主关系） | 雇主代扣代缴 | ❌ |
+| **B轨** | 劳务报酬（KOL/KOC） | 单笔>800 预扣20%，月累>1万强制 | ✅ |
+| **C轨** | 经营所得（个体户） | 全额拨付，自行开票 | ✅ 需自行 |
 
----
-
-## 📜 许可证 / License
-
-Apache License 2.0 — 详见 / See [LICENSE](LICENSE)
+### 风险标签
+- 🔴 高频交易警戒：单日≥5笔
+- 🟡 月累超限：累计>1万元，建议引导C轨
+- 🟢 小额暂扣：≤800元且月累≤1万，月底汇总
 
 ---
 
-## 🤝 贡献 / Contributing
+## 🔗 相关项目
 
-欢迎贡献！请阅读 / Please read [CONTRIBUTING.md](CONTRIBUTING.md)  
-了解分支规范和提交流程 / Learn about branch conventions and PR workflow.
-
----
-
-## 🔗 相关项目 / Related Projects
-
-- [龟钮·印证 / Guiniu Verify](https://github.com/guiniu/verify) — 数据存证集市（闭源 / Closed Source）
-- [龟钮·印鉴 / Guiniu Deveco](https://github.com/guiniu/deveco) — 汽车 AI 智能体（闭源 / Closed Source）
+| 项目 | 状态 | 定位 |
+|------|------|------|
+| [龟钮·印信 (Seal)](https://github.com/scnetadam/guiniu-seal) | **开源** ⭐ | 支付网关 · 四流合一结算 |
+| 龟钮·印证 (Verify) | 闭源 | 数据存证 · 公证 · 数据市场 |
+| 龟钮·自驭 (Deveco) | 闭源 | AI智能体 · KOL权重 · 内容生态 |
 
 ---
 
-**龟钮体系 / Guiniu Ecosystem**  
-执印行权 · 验印存真 · 鉴真鉴价  
+## 🤝 参与贡献
+
+欢迎 Issue 和 PR！请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)
+
+**开源路线图：**
+- ✅ 三通道支付（支付宝/微信/e-CNY）
+- ✅ 权重分账引擎 + 四流合一
+- ✅ 三轨税务处理
+- ✅ 协调层（支付→存证→权重→通知）
+- ✅ 两阶段结算（prepare→confirm两次确认）
+- ✅ Wallet预扣机制（check→reserve→execute→release）
+- ✅ 通道差异AI评估（ChannelCapability）
+- ✅ AI阀值引擎（龟钮点累计→分账触发）
+- ✅ CollectorAgent（4流核心轴+熔断+死信队列）
+- ✅ 税务回环状态机（pending→declared→verified→incentivized）
+- ✅ 通知多渠道调度（NotifyChannel接口+SMS/Email/InApp/Login）
+- ✅ SSO跨项目认证（JWT签发中心）
+- ✅ 幂等键防双重扣款
+- ✅ FileStore写入队列+乐观锁
+- 🔲 统一收银台 UI 组件
+- 🔲 数据市场 B端入口
+- 🔲 开发者文档 SDK
+
+---
+
+**龟钮哲学** · 2000 年秦汉文化 → 硅基文明契约基石  
+**数据二十条** · 三权分置落地  
+**新质生产力** · AI 配电箱
+
+**执印行权 · 验印存真 · 鉴真鉴价**  
 Authority · Authenticity · Appraisal
+
+---
+
+[![Star History Chart](https://api.star-history.com/svg?repos=scnetadam/guiniu-seal&type=Date)](https://star-history.com/#scnetadam/guiniu-seal&Date)

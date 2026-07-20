@@ -1,15 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { payments, wallets, users } = require('../models/dataStore');
+const { payments, wallets, idempotency } = require('../models/dataStore');
 
-// POST /api/payment/create — 创建支付
-// ⚠️ 直连模式：付款方直付收款方，协议不代收代付，不触碰资金池
-// Direct settlement: payer → payee directly, protocol never holds funds
 router.post('/create', (req, res) => {
   try {
-    const { payerId, payeeId, amount, subject, channel } = req.body;
+    const { payerId, payeeId, amount, subject, channel, idempotencyKey } = req.body;
     if (!payerId || !payeeId || !amount) {
       return res.status(400).json({ success: false, error: 'payerId, payeeId, amount 为必填' });
+    }
+
+    if (idempotencyKey) {
+      const dup = idempotency.check(idempotencyKey);
+      if (dup.isDuplicate) {
+        return res.json({ success: true, data: dup.result, idempotent: true });
+      }
     }
 
     const payment = {
@@ -26,88 +30,93 @@ router.post('/create', (req, res) => {
 
     payments.set(payment.id, payment);
 
+    if (idempotencyKey) {
+      idempotency.complete(idempotencyKey, payment);
+    }
+
     res.json({ success: true, data: payment });
   } catch (e) {
     console.error('[payment] 创建错误:', e);
+    if (req.body.idempotencyKey) idempotency.fail(req.body.idempotencyKey, e.message);
     res.status(500).json({ success: false, error: '服务器错误' });
   }
 });
 
-// POST /api/payment/confirm — 确认支付
-// ⚠️ 仅执行 payer→payee 直连转账，平台不介入资金流转
-// Direct transfer only, platform never intermediates funds
 router.post('/confirm', (req, res) => {
   try {
-    const { id } = req.body;
+    const { id, idempotencyKey } = req.body;
     if (!id) return res.status(400).json({ success: false, error: 'id 为必填' });
+
+    if (idempotencyKey) {
+      const dup = idempotency.check(idempotencyKey);
+      if (dup.isDuplicate) {
+        return res.json({ success: true, data: dup.result, idempotent: true });
+      }
+    }
 
     const payment = payments.get(id);
     if (!payment) return res.status(404).json({ success: false, error: '支付记录不存在' });
     if (payment.status !== 'pending') {
-      return res.json({ success: false, error: `当前状态不允许确认: ${payment.status}` });
+      const result = { success: false, error: `当前状态不允许确认: ${payment.status}`, currentStatus: payment.status };
+      if (idempotencyKey) idempotency.complete(idempotencyKey, result);
+      return res.json(result);
     }
 
-    // 扣款
-    const payer = users.get(payment.payerId);
-    const payee = users.get(payment.payeeId);
-
-    if (payer && payment.channel === 'balance') {
-      const payerBalance = payer.balance || 0;
-      if (payerBalance < payment.amount) {
-        return res.json({ success: false, error: '余额不足' });
+    const lockResult = wallets.withLock(payment.payerId, (wallet) => {
+      if ((wallet.balance || 0) < payment.amount) {
+        return false;
       }
-      payer.balance = payerBalance - payment.amount;
-      users.set(payer.id, payer);
+      wallet.balance -= payment.amount;
+      wallet.transactions.push({
+        id: `tx_${Date.now()}`,
+        userId: payment.payerId,
+        type: 'payment',
+        amount: -payment.amount,
+        subject: payment.subject,
+        refId: payment.id,
+        createdAt: new Date().toISOString(),
+      });
+      return wallet;
+    });
+
+    if (!lockResult.success) {
+      const errResult = { success: false, error: lockResult.error === 'operation_rejected' ? '余额不足' : '扣款失败' };
+      if (idempotencyKey) idempotency.complete(idempotencyKey, errResult);
+      return res.json(errResult);
     }
 
-    if (payee && payment.channel === 'balance') {
-      payee.balance = (payee.balance || 0) + payment.amount;
-      users.set(payee.id, payee);
+    if (payment.payeeId) {
+      wallets.withLock(payment.payeeId, (wallet2) => {
+        wallet2.balance = (wallet2.balance || 0) + payment.amount;
+        wallet2.transactions.push({
+          id: `tx_${Date.now()}_2`,
+          userId: payment.payeeId,
+          type: 'receipt',
+          amount: payment.amount,
+          subject: payment.subject,
+          refId: payment.id,
+          createdAt: new Date().toISOString(),
+        });
+        return wallet2;
+      });
     }
 
     payment.status = 'completed';
     payment.updatedAt = new Date().toISOString();
     payments.set(payment.id, payment);
 
-    // 记录钱包流水
-    const walletTx = {
-      id: `tx_${Date.now()}`,
-      userId: payment.payerId,
-      type: 'payment',
-      amount: -payment.amount,
-      subject: payment.subject,
-      refId: payment.id,
-      createdAt: new Date().toISOString(),
-    };
-    const wallet = wallets.get(payment.payerId) || { userId: payment.payerId, balance: 0, transactions: [] };
-    wallet.balance = (wallet.balance || 0) - payment.amount;
-    wallet.transactions.push(walletTx);
-    wallets.set(payment.payerId, wallet);
-
-    if (payment.payeeId) {
-      const walletTx2 = {
-        id: `tx_${Date.now()}_2`,
-        userId: payment.payeeId,
-        type: 'receipt',
-        amount: payment.amount,
-        subject: payment.subject,
-        refId: payment.id,
-        createdAt: new Date().toISOString(),
-      };
-      const wallet2 = wallets.get(payment.payeeId) || { userId: payment.payeeId, balance: 0, transactions: [] };
-      wallet2.balance = (wallet2.balance || 0) + payment.amount;
-      wallet2.transactions.push(walletTx2);
-      wallets.set(payment.payeeId, wallet2);
+    if (idempotencyKey) {
+      idempotency.complete(idempotencyKey, payment);
     }
 
     res.json({ success: true, data: payment });
   } catch (e) {
     console.error('[payment] 确认错误:', e);
+    if (req.body.idempotencyKey) idempotency.fail(req.body.idempotencyKey, e.message);
     res.status(500).json({ success: false, error: '服务器错误' });
   }
 });
 
-// GET /api/payment/list — 交易列表
 router.get('/list', (req, res) => {
   try {
     const { userId, page = 1, pageSize = 20 } = req.query;
@@ -117,7 +126,6 @@ router.get('/list', (req, res) => {
       list = list.filter(p => p.payerId === userId || p.payeeId === userId);
     }
 
-    // 按时间倒序
     list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     const total = list.length;
@@ -133,7 +141,6 @@ router.get('/list', (req, res) => {
   }
 });
 
-// GET /api/payment/detail — 交易详情
 router.get('/detail', (req, res) => {
   try {
     const { id } = req.query;

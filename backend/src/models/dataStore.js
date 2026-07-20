@@ -1,8 +1,3 @@
-/**
- * 龟钮·印信 — 开源版数据存储
- * 轻量文件 JSON 存储，无需数据库依赖
- */
-
 const fs = require('fs');
 const path = require('path');
 
@@ -17,6 +12,8 @@ class FileStore {
     this.name = name;
     this.filePath = path.join(DATA_DIR, `${name}.json`);
     this.data = new Map();
+    this._writeQueue = Promise.resolve();
+    this._version = 0;
     this._load(seedData);
   }
 
@@ -35,33 +32,138 @@ class FileStore {
 
     if (this.data.size === 0 && seedData.length > 0) {
       seedData.forEach(item => this.data.set(item.id, { ...item }));
-      this._save();
+      this._enqueueSave();
     }
   }
 
-  _save() {
-    try {
-      fs.writeFileSync(this.filePath, JSON.stringify(Array.from(this.data.values()), null, 2), 'utf-8');
-    } catch (e) {
-      console.error(`[FileStore:${this.name}] 保存失败:`, e.message);
-    }
+  _enqueueSave() {
+    this._writeQueue = this._writeQueue.then(() => {
+      return new Promise((resolve) => {
+        try {
+          const payload = JSON.stringify(Array.from(this.data.values()), null, 2);
+          fs.writeFileSync(this.filePath, payload, 'utf-8');
+        } catch (e) {
+          console.error(`[FileStore:${this.name}] 保存失败:`, e.message);
+        }
+        resolve();
+      });
+    });
+    return this._writeQueue;
   }
 
   get(id) { return this.data.get(id) || null; }
-  set(id, value) { this.data.set(id, value); this._save(); return value; }
+
+  set(id, value) {
+    this.data.set(id, value);
+    this._version++;
+    this._enqueueSave();
+    return value;
+  }
+
   getAll() { return Array.from(this.data.values()); }
   find(predicate) { return Array.from(this.data.values()).filter(predicate); }
   findOne(predicate) { return Array.from(this.data.values()).find(predicate); }
-  delete(id) { const r = this.data.delete(id); if (r) this._save(); return r; }
+
+  delete(id) {
+    const r = this.data.delete(id);
+    if (r) {
+      this._version++;
+      this._enqueueSave();
+    }
+    return r;
+  }
+
   size() { return this.data.size; }
+
+  getVersion() { return this._version; }
+
+  compareAndSwap(id, expectedVersion, updater) {
+    const current = this.data.get(id);
+    if (!current) return { success: false, error: 'not_found' };
+    if ((current._v || 0) !== expectedVersion) {
+      return { success: false, error: 'version_conflict', currentVersion: current._v || 0 };
+    }
+    const updated = updater(current);
+    if (!updated) return { success: false, error: 'update_rejected' };
+    updated._v = expectedVersion + 1;
+    this.data.set(id, updated);
+    this._version++;
+    this._enqueueSave();
+    return { success: true, data: updated, newVersion: updated._v };
+  }
+
+  withLock(id, fn) {
+    const current = this.data.get(id);
+    if (!current) return { success: false, error: 'not_found' };
+    const vBefore = current._v || 0;
+    const result = fn(current);
+    if (result === false) return { success: false, error: 'operation_rejected' };
+    const updated = result || current;
+    updated._v = vBefore + 1;
+    this.data.set(id, updated);
+    this._version++;
+    this._enqueueSave();
+    return { success: true, data: updated, newVersion: updated._v };
+  }
 }
 
-// 导出存储实例
+class IdempotencyStore {
+  constructor() {
+    this._keys = new Map();
+    this._results = new Map();
+  }
+
+  check(key) {
+    if (this._keys.has(key)) {
+      return { isDuplicate: true, result: this._results.get(key) || null };
+    }
+    this._keys.set(key, { status: 'processing', createdAt: new Date().toISOString() });
+    return { isDuplicate: false };
+  }
+
+  complete(key, result) {
+    this._keys.set(key, { status: 'completed', completedAt: new Date().toISOString() });
+    this._results.set(key, result);
+  }
+
+  fail(key, error) {
+    this._keys.set(key, { status: 'failed', error: String(error), failedAt: new Date().toISOString() });
+  }
+
+  getResult(key) {
+    return this._results.get(key) || null;
+  }
+
+  has(key) {
+    return this._keys.has(key);
+  }
+
+  stats() {
+    const all = Array.from(this._keys.values());
+    return {
+      total: all.length,
+      byStatus: all.reduce((a, k) => { a[k.status] = (a[k.status] || 0) + 1; return a; }, {}),
+    };
+  }
+}
+
 const stores = {
   users: new FileStore('users'),
   payments: new FileStore('payments'),
   wallets: new FileStore('wallets'),
   agentPayments: new FileStore('agentPayments'),
+  gitRepoTracker: new FileStore('gitRepoTracker'),
+  gitContributor: new FileStore('gitContributor'),
+  gitWeightedSettle: new FileStore('gitWeightedSettle'),
+  dataLock: new FileStore('dataLock'),
+  notification: new FileStore('notification'),
+  notificationTemplate: new FileStore('notificationTemplate'),
+  userNotificationPref: new FileStore('userNotificationPref'),
+  opRegistry: new FileStore('opRegistry'),
+  deadLetterOps: new FileStore('deadLetterOps'),
+  taxRecords: new FileStore('taxRecords'),
 };
 
-module.exports = stores;
+const idempotency = new IdempotencyStore();
+
+module.exports = { ...stores, idempotency };

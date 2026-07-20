@@ -1,11 +1,10 @@
 /**
- * 龟钮印证 API 封装
- * 后端：龟钮印证支付中台 (Node.js Express)
+ * 龟钮·印信 API 封装
+ * 后端：龟钮印信支付中台 (Node.js Express)
+ * 仅供支付核心模块使用
  */
 
-// 后端服务地址
-// 优先使用环境变量 VITE_API_BASE，否则用默认值
-const BASE_URL = import.meta.env.VITE_API_BASE || 'https://192.168.0.100:3443/api';
+const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:3002/api';
 
 export function getUserId(): string {
   return uni.getStorageSync('userId') || '';
@@ -13,6 +12,29 @@ export function getUserId(): string {
 
 function getToken(): string {
   return uni.getStorageSync('token') || '';
+}
+
+interface RequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  data?: Record<string, any>;
+  showLoading?: boolean;
+  loadingText?: string;
+}
+
+export interface ApiResult<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+}
+
+export interface TxItem {
+  id: string;
+  userId: string;
+  type: string;
+  amount: number;
+  desc: string;
+  balance: number;
+  createdAt: string;
 }
 
 async function request<T = any>(url: string, options: RequestOptions = {}): Promise<T> {
@@ -24,14 +46,10 @@ async function request<T = any>(url: string, options: RequestOptions = {}): Prom
   }
 
   try {
-    // 支付宝小程序 my.request 会自动处理对象序列化
-    // 传原始对象，让框架负责序列化
-    const requestData = options.data;
-
     const res = await uni.request({
       url: `${BASE_URL}${url}`,
       method: options.method || 'GET',
-      data: requestData,
+      data: options.data,
       header: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -45,12 +63,6 @@ async function request<T = any>(url: string, options: RequestOptions = {}): Prom
 
     return res.data as T;
   } catch (err: any) {
-    console.log('[API错误] 类型:', typeof err);
-    console.log('[API错误] 本身:', err);
-    console.log('[API错误] message:', err?.message);
-    console.log('[API错误] errMsg:', err?.errMsg);
-    console.log('[API错误] errorCode:', err?.errorCode);
-    console.log('[API错误] stack:', err?.stack);
     uni.showToast({ title: err?.message || '网络错误', icon: 'none' });
     throw err;
   } finally {
@@ -58,13 +70,6 @@ async function request<T = any>(url: string, options: RequestOptions = {}): Prom
       uni.hideLoading();
     }
   }
-}
-
-interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
-  data?: Record<string, any>;
-  showLoading?: boolean;
-  loadingText?: string;
 }
 
 // ==================== Auth ====================
@@ -80,240 +85,109 @@ export const authApi = {
 
 // ==================== Wallet ====================
 export const walletApi = {
-  // 从后端获取钱包余额
   async balance() {
     const userId = getUserId();
-    const result = await request<ApiResult<any>>(`/wallet/balance?userId=${userId}`, {
-      showLoading: false,
-    });
-    // 返回钱包完整信息 (balance + dataEarnings)
-    return result;
+    return request<ApiResult<any>>(`/wallet/balance?userId=${userId}`, { showLoading: false });
   },
   transactions(page = 1) {
     const userId = getUserId();
-    return request<ApiResult<{ list: TxItem[]; total: number }>>(`/wallet/transactions?userId=${userId}&page=${page}`, {
-      showLoading: false,
-    });
+    return request<ApiResult<{ list: TxItem[]; total: number }>>(`/wallet/transactions?userId=${userId}&page=${page}`, { showLoading: false });
   },
 };
 
-// ==================== Payment (L0 隔离) ====================
+// ==================== Payment ====================
 export const paymentApi = {
-  // L0 创建支付 (包含 B 端资费 + 风控 + HASH)
-  create(data: {
-    amount: number;
-    subject: string;
-    payerId?: string;
-    payeeId?: string;
-    userId?: string;
-    payMode?: string;
-  }) {
-    return request<ApiResult<any>>('/payment/create', {
-      method: 'POST',
-      data,
-    });
+  create(data: { amount: number; subject: string; payerId?: string; payeeId?: string; userId?: string }) {
+    return request<ApiResult<any>>('/payment/create', { method: 'POST', data });
   },
-  // 确认支付
-  confirm(id: string, channelTradeNo: string) {
-    return request<ApiResult<any>>('/payment/confirm', {
-      method: 'POST',
-      data: { id, channelTradeNo },
-    });
+  confirm(id: string) {
+    return request<ApiResult<any>>('/payment/confirm', { method: 'POST', data: { id } });
   },
-  // 查询交易
-  query(id: string) {
-    return request<ApiResult<any>>(`/payment/query?id=${id}`, {
-      showLoading: false,
-    });
+  list(userId?: string, page = 1) {
+    const params = `?userId=${userId || getUserId()}&page=${page}`;
+    return request<ApiResult<{ items: any[]; total: number }>>(`/payment/list${params}`, { showLoading: false });
   },
-  // 扫码支付（外部收款码）
-  scanPay(scanCode: string) {
-    return request<ApiResult<any>>('/payment/scan-pay', {
-      method: 'POST',
-      data: { scanCode, userId: getUserId() },
-    });
+  detail(id: string) {
+    return request<ApiResult<any>>(`/payment/detail?id=${id}`, { showLoading: false });
   },
 };
 
-// ==================== Data Market ====================
-export const dataMarketApi = {
-  // 数据授权
-  consent(userId: string, scope?: string) {
-    return request<ApiResult<any>>('/data-market/consent', {
-      method: 'POST',
-      data: { userId, scope: scope || 'all' },
-    });
+// ==================== Agent Pay ====================
+export const agentPayApi = {
+  execute(data: { agentId: string; payerId: string; payeeId?: string; amount: number; subject?: string }) {
+    return request<ApiResult<any>>('/agent-pay/execute', { method: 'POST', data });
   },
-  // 查询授权状态
-  getConsent(userId: string) {
-    return request<ApiResult<any>>(`/data-market/consent?userId=${userId}`, {
-      showLoading: false,
-    });
-  },
-  // G 端查询数据产品
-  listProducts() {
-    return request<ApiResult<any[]>>('/data-market/products', {
-      showLoading: false,
-    });
-  },
-  // G 端购买数据
-  purchase(productId: string, buyerId: string, quantity?: number) {
-    return request<ApiResult<any>>('/data-market/purchase', {
-      method: 'POST',
-      data: { productId, buyerId, quantity: quantity || 1 },
-    });
-  },
-  // BC 端查询分成收益
-  earnings(userId: string) {
-    return request<ApiResult<any>>(`/data-market/earnings?userId=${userId}`, {
-      showLoading: false,
-    });
-  },
-  // 数据样本 (脱敏后)
-  sample(productId?: string) {
-    return request<ApiResult<any[]>>(`/data-market/sample?productId=${productId || ''}`, {
-      showLoading: false,
-    });
+  list(agentId: string, page = 1) {
+    return request<ApiResult<{ items: any[]; total: number }>>(`/agent-pay/list?agentId=${agentId}&page=${page}`, { showLoading: false });
   },
 };
 
-// ==================== Notary (公证) ====================
-export const notaryApi = {
-  // 列出服务商
-  listProviders() {
-    return request<ApiResult<any[]>>('/notary/providers', {
-      showLoading: false,
-    });
+// ==================== Settle (统一结算) ====================
+export const settleApi = {
+  checkout(data: { amount: number; subject: string; channel?: string; payerId: string; payeeId?: string }) {
+    return request<ApiResult<any>>('/settle/checkout', { method: 'POST', data });
   },
-  // 申请公证
-  apply(txId: string, providerId: string, userId: string, amount: number) {
-    return request<ApiResult<any>>('/notary/apply', {
-      method: 'POST',
-      data: { txId, providerId, userId, amount },
-    });
-  },
-  // 查询公证状态
-  query(id: string) {
-    return request<ApiResult<any>>(`/notary/query?id=${id}`, {
-      showLoading: false,
-    });
+  query(tradeNo: string) {
+    return request<ApiResult<any>>(`/settle/query?tradeNo=${tradeNo}`, { showLoading: false });
   },
 };
 
-// ==================== Risk (风控) ====================
-export const riskApi = {
-  // 风险鉴定
-  assess(amount: number, userId: string, payeeId?: string) {
-    return request<ApiResult<any>>('/risk/assess', {
-      method: 'POST',
-      data: { amount, userId, payeeId },
-      showLoading: false,
-    });
-  },
-};
-
-// ==================== Booking (试驾预约) ====================
-export const bookingApi = {
-  submit(data: { contentId?: string; name: string; phone: string; city?: string; dealerName?: string }) {
-    return request<ApiResult<any>>('/booking/submit', {
-      method: 'POST',
-      data: { ...data, userId: getUserId() },
-    });
-  },
-  getByUser() {
-    const userId = getUserId();
-    return request<ApiResult<any>>(`/booking/user/${userId}`, { showLoading: false });
-  },
-};
-
-// ==================== Content (推广内容) ====================
-export const contentApi = {
-  publish(data: { activityId: string; carModel: string; text?: string; images?: string[] }) {
-    return request<ApiResult<any>>('/content/publish', {
-      method: 'POST',
-      data: { ...data, userId: getUserId() },
-    });
-  },
-  getById(id: string) {
-    return request<ApiResult<any>>(`/content/${id}`, { showLoading: false });
-  },
-  getByUser() {
-    const userId = getUserId();
-    return request<ApiResult<any>>(`/content/user/${userId}`, { showLoading: false });
-  },
-  trackView(contentId: string) {
-    return request<ApiResult<any>>('/content/track/view', {
-      method: 'POST',
-      data: { contentId, userId: getUserId() },
-      showLoading: false,
-    });
-  },
-};
-
-// ==================== AI ====================
-export const aiApi = {
-  generateCopy(brand: string, model: string, keywords?: string, style?: string) {
-    return request<ApiResult<any>>('/ai/generate-copy', {
-      method: 'POST',
-      data: { brand, model, keywords, style, userId: getUserId() },
-    });
-  },
-  recommend() {
-    return request<ApiResult<any>>('/ai/recommend', {
-      method: 'POST',
-      data: { userId: getUserId() },
-      showLoading: false,
-    });
-  },
-  insight() {
-    return request<ApiResult<any>>('/ai/insight', {
-      method: 'POST',
-      data: { userId: getUserId() },
-      showLoading: false,
-    });
-  },
-  assistant(brand: string, model: string, question: string, chatHistory?: any[]) {
-    return request<ApiResult<any>>('/ai/assistant', {
-      method: 'POST',
-      data: { brand, model, question, chatHistory, userId: getUserId() },
-    });
-  },
-};
-
-// ==================== Types ====================
-export interface ApiResult<T> {
-  success: boolean;
-  data: T;
-  error?: string;
-}
-
-export interface TxItem {
-  id: string;
-  userId: string;
-  type: string;
-  amount: number;
-  desc: string;
-  contentId: string;
-  balance: number;
-  createdAt: string;
-}
-
-export default request;
-
-// 通用 API 请求（用于非标准模块）
+// ==================== General-purpose API ====================
 export const api = {
   get(url: string, opts?: { params?: Record<string, any> }) {
-    const query = opts?.params ? '?' + Object.entries(opts.params)
-      .filter(([, v]) => v !== '' && v !== undefined)
-      .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
-      .join('&') : '';
+    const query = opts?.params
+      ? '?' + Object.entries(opts.params).filter(([, v]) => v !== '' && v !== undefined)
+          .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&')
+      : '';
     return request<ApiResult<any>>(url + query, { showLoading: false });
   },
   post(url: string, data?: any) {
-    return request<ApiResult<any>>(url, {
-      method: 'POST',
-      data,
-      showLoading: false,
-    });
+    return request<ApiResult<any>>(url, { method: 'POST', data, showLoading: false });
   },
 };
+
+// ==================== GIT Repo Tracker ====================
+export const gitRepoTrackerApi = {
+  sync() { return request<ApiResult<any>>('/git-repo-tracker/sync', { method: 'POST', showLoading: true }); },
+  status() { return request<ApiResult<any>>('/git-repo-tracker/status', { showLoading: false }); },
+  dimensions() { return request<ApiResult<any>>('/git-repo-tracker/weighted-dimensions', { showLoading: false }); },
+  growth() { return request<ApiResult<any>>('/git-repo-tracker/growth', { showLoading: false }); },
+  notarize() { return request<ApiResult<any>>('/git-repo-tracker/notarize', { method: 'POST', showLoading: true }); },
+  settle(data: any) { return request<ApiResult<any>>('/git-repo-tracker/settle', { method: 'POST', data, showLoading: false }); },
+  settleStats() { return request<ApiResult<any>>('/git-repo-tracker/settle/stats', { showLoading: false }); },
+  settleRecords(page?: number) { return request<ApiResult<any>>(`/git-repo-tracker/settle/records${page ? '?page=' + page : ''}`, { showLoading: false }); },
+  contributorTrack(data: any) { return request<ApiResult<any>>('/git-repo-tracker/contributor/track', { method: 'POST', data, showLoading: false }); },
+  contributorList() { return request<ApiResult<any>>('/git-repo-tracker/contributor/list', { showLoading: false }); },
+  contributorDetail(id: string) { return request<ApiResult<any>>(`/git-repo-tracker/contributor/detail?id=${id}`, { showLoading: false }); },
+  dashboard() { return request<ApiResult<any>>('/git-repo-tracker/dashboard', { showLoading: false }); },
+};
+
+// ==================== Data Lock ====================
+export const dataLockApi = {
+  lock(data: any) { return request<ApiResult<any>>('/data-lock/lock', { method: 'POST', data, showLoading: true }); },
+  batchLock(data: any) { return request<ApiResult<any>>('/data-lock/batch-lock', { method: 'POST', data, showLoading: true }); },
+  records(params?: any) { const q = params ? '?' + Object.entries(params).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&') : ''; return request<ApiResult<any>>(`/data-lock/records${q}`, { showLoading: false }); },
+  detail(id: string) { return request<ApiResult<any>>(`/data-lock/detail?id=${id}`, { showLoading: false }); },
+  verify(data: any) { return request<ApiResult<any>>('/data-lock/verify', { method: 'POST', data, showLoading: false }); },
+  upgrade(data: any) { return request<ApiResult<any>>('/data-lock/upgrade', { method: 'POST', data, showLoading: true }); },
+  stats() { return request<ApiResult<any>>('/data-lock/stats', { showLoading: false }); },
+  sources() { return request<ApiResult<any>>('/data-lock/sources', { showLoading: false }); },
+};
+
+// ==================== Notification ====================
+export const notificationApi = {
+  send(data: any) { return request<ApiResult<any>>('/notification/send', { method: 'POST', data, showLoading: false }); },
+  earningsReminder(data: any) { return request<ApiResult<any>>('/notification/earnings-reminder', { method: 'POST', data, showLoading: false }); },
+  dailyReminder(data: any) { return request<ApiResult<any>>('/notification/daily-reminder', { method: 'POST', data, showLoading: false }); },
+  loginReminders() { const uid = getUserId(); return request<ApiResult<any>>(`/notification/login-reminders?userId=${uid}`, { showLoading: false }); },
+  markRead(ids: string[]) { return request<ApiResult<any>>('/notification/mark-read', { method: 'POST', data: { notificationIds: ids, userId: getUserId() }, showLoading: false }); },
+  dismissReminder(id: string) { return request<ApiResult<any>>('/notification/dismiss-reminder', { method: 'POST', data: { id, userId: getUserId() }, showLoading: false }); },
+  list(params?: any) { const uid = getUserId(); const q = params ? '&' + Object.entries(params).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&') : ''; return request<ApiResult<any>>(`/notification/list?userId=${uid}${q}`, { showLoading: false }); },
+  unreadCount() { const uid = getUserId(); return request<ApiResult<any>>(`/notification/unread-count?userId=${uid}`, { showLoading: false }); },
+  prefSet(data: any) { return request<ApiResult<any>>('/notification/pref/set', { method: 'POST', data: { ...data, userId: getUserId() }, showLoading: false }); },
+  prefList() { const uid = getUserId(); return request<ApiResult<any>>(`/notification/pref/list?userId=${uid}`, { showLoading: false }); },
+  categories() { return request<ApiResult<any>>('/notification/categories', { showLoading: false }); },
+  templates(params?: any) { const q = params ? '?' + Object.entries(params).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&') : ''; return request<ApiResult<any>>(`/notification/templates${q}`, { showLoading: false }); },
+};
+
+export default request;

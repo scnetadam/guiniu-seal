@@ -54,6 +54,22 @@
         <text class="menu-text">关于</text>
         <text class="menu-arrow">&gt;</text>
       </view>
+      <view class="menu-item" @tap="goToNotification">
+        <text class="menu-icon">🔔</text>
+        <text class="menu-text">消息中心</text>
+        <text class="notif-dot" v-if="unreadNotifCount > 0"></text>
+        <text class="menu-arrow">&gt;</text>
+      </view>
+      <view class="menu-item" @tap="goToGitTracker">
+        <text class="menu-icon">🔗</text>
+        <text class="menu-text">GIT 仓库追踪</text>
+        <text class="menu-arrow">&gt;</text>
+      </view>
+      <view class="menu-item" @tap="goToDataLock">
+        <text class="menu-icon">🔐</text>
+        <text class="menu-text">数据锁定存证</text>
+        <text class="menu-arrow">&gt;</text>
+      </view>
     </view>
     <button class="logout-btn" v-if="userStore.isLoggedIn" @tap="handleLogout">退出登录</button>
   </view>
@@ -63,10 +79,11 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '../../stores/index'
-import { walletApi } from '../../api/index'
+import { walletApi, notificationApi } from '../../api/index'
 
 const userStore = useUserStore()
 const stats = ref({ txCount: 0, certCount: 0, creditScore: 0 })
+const unreadNotifCount = ref(0)
 
 onShow(async () => {
   userStore.restore()
@@ -79,6 +96,10 @@ onShow(async () => {
         stats.value.creditScore = res.data.creditScore || 0
       }
     } catch (e) {}
+    try {
+      const nRes = await notificationApi.unreadCount()
+      if (nRes.success) unreadNotifCount.value = nRes.data?.total || 0
+    } catch (e) {}
   }
 })
 
@@ -88,6 +109,9 @@ function goToBills() { uni.switchTab({ url: '/pages/bills/index' }) }
 function goToData() { uni.navigateTo({ url: '/pages/dataEarnings/index' }) }
 function goToSecurity() { uni.showToast({ title: '安全设置功能开发中', icon: 'none' }) }
 function goToAbout() { uni.showToast({ title: '关于页面开发中', icon: 'none' }) }
+function goToNotification() { uni.navigateTo({ url: '/pages/notification/index' }) }
+function goToGitTracker() { uni.navigateTo({ url: '/pages/gitRepoTracker/index' }) }
+function goToDataLock() { uni.navigateTo({ url: '/pages/dataLock/index' }) }
 
 function handleLogout() {
   uni.showModal({
@@ -120,5 +144,6 @@ function handleLogout() {
 .menu-icon { font-size:32rpx; margin-right:16rpx; }
 .menu-text { flex:1; font-size:28rpx; color:var(--gn-text); }
 .menu-arrow { font-size:28rpx; color:var(--gn-text-tertiary); }
+.notif-dot { width:16rpx; height:16rpx; background:#ef4444; border-radius:50%; margin-left:8rpx; margin-right:8rpx; }
 .logout-btn { margin:40rpx 24rpx; height:80rpx; background:var(--gn-card); border:2rpx solid var(--gn-danger); border-radius:var(--gn-radius-lg); color:var(--gn-danger); font-size:28rpx; line-height:80rpx; text-align:center; }
 </style>

@@ -3,52 +3,63 @@
     "backgroundColor": "#f5f5f5",
     "navigationBarBackgroundColor": "#8B0000",
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "¹êÅ¥¡¤Ó¡ĞÅ"
+    "navigationBarTitleText": "é¾Ÿé’®Â·å°ä¿¡"
   },
   "pages": [
     {
       "path": "pages/home/index",
       "style": {
-        "navigationBarTitleText": "¹êÅ¥¡¤Ó¡ĞÅ",
+        "navigationBarTitleText": "é¾Ÿé’®Â·å°ä¿¡",
         "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/pay/index",
       "style": {
-        "navigationBarTitleText": "Ö§¸¶"
+        "navigationBarTitleText": "æ”¯ä»˜"
       }
     },
     {
       "path": "pages/wallet/index",
       "style": {
-        "navigationBarTitleText": "Ç®°ü"
+        "navigationBarTitleText": "é’±åŒ…"
       }
     },
     {
       "path": "pages/bills/index",
       "style": {
-        "navigationBarTitleText": "ÕËµ¥"
-      }
-    },
-    {
-      "path": "pages/ai-chat/index",
-      "style": {
-        "navigationBarTitleText": "AI ÖúÊÖ",
-        "navigationStyle": "custom"
+        "navigationBarTitleText": "è´¦å•"
       }
     },
     {
       "path": "pages/profile/index",
       "style": {
-        "navigationBarTitleText": "ÎÒµÄ"
+        "navigationBarTitleText": "æˆ‘çš„"
       }
     },
     {
       "path": "pages/login/index",
       "style": {
-        "navigationBarTitleText": "µÇÂ¼",
+        "navigationBarTitleText": "ç™»å½•",
         "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/gitRepoTracker/index",
+      "style": {
+        "navigationBarTitleText": "GIT ä»“åº“è¿½è¸ª"
+      }
+    },
+    {
+      "path": "pages/dataLock/index",
+      "style": {
+        "navigationBarTitleText": "æ•°æ®é”å®šå­˜è¯"
+      }
+    },
+    {
+      "path": "pages/notification/index",
+      "style": {
+        "navigationBarTitleText": "æ¶ˆæ¯ä¸­å¿ƒ"
       }
     }
   ],
@@ -60,15 +71,15 @@
     "list": [
       {
         "pagePath": "pages/home/index",
-        "text": "Ê×Ò³"
+        "text": "é¦–é¡µ"
       },
       {
         "pagePath": "pages/bills/index",
-        "text": "ÕËµ¥"
+        "text": "è´¦å•"
       },
       {
         "pagePath": "pages/profile/index",
-        "text": "ÎÒµÄ"
+        "text": "æˆ‘çš„"
       }
     ]
   }
